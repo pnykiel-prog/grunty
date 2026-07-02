@@ -46,8 +46,17 @@ GRUNTY_MODE=live uvicorn api.main:app
 ## Testy
 
 ```bash
+pip install -r requirements-dev.txt   # runtime + pytest
 pytest -q
 ```
+
+## Deploy (Vercel)
+
+Aplikacja jest gotowa pod Vercel (`vercel.json` + entrypoint `api/index.py`
+eksponujący ASGI `app`). Produkcyjny deploy idzie z gałęzi **main**.
+`requirements.txt` zawiera tylko zależności runtime (bez pytest) — mniejszy
+bundle funkcji. Domyślny tryb: `mock`; dla `live` ustaw `GRUNTY_MODE=live`
+w zmiennych środowiskowych projektu Vercel.
 
 Sprawdzają: poprawna działka → powierzchnia i geometria; nieprzylegające → błąd
 terminalny; determinizm; **zero pętli, zawsze terminal**; pełny wynik w mocku.
