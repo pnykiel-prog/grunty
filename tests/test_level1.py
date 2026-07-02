@@ -29,6 +29,25 @@ def test_pojedyncza_dzialka_ok():
     assert wynik.potencjal.flaga_mpzp in ("jest", "brak", "nieznane")
 
 
+def test_prezentacja_kompletna():
+    """Warstwa prezentacyjna: score, kategoria, rekomendacja, bramka, geometrie."""
+    wynik = run_level1(Level1Request(dzialki=[_pid("1"), _pid("2")]))
+    assert wynik.profile.rekomendowany in ("mlodzi", "seniorzy")
+    for prof in (wynik.profile.mlodzi, wynik.profile.seniorzy):
+        assert 0 <= prof.score <= 100
+        assert prof.kategoria in ("nadaje_sie", "warunkowo", "nie")
+        assert 0.0 <= prof.pewnosc <= 1.0
+        assert len(prof.sygnaly) >= 1
+    assert wynik.brama is not None
+    assert isinstance(wynik.brama.przechodzi, bool)
+    assert wynik.flagi_sygnaly, "oczekiwano chipów flag/sygnałów"
+    for s in wynik.flagi_sygnaly:
+        assert s.typ in ("positive", "neutral", "warning")
+    # geometrie per działka (do mapy)
+    assert len(wynik.dzialki) == 2
+    assert all(d.wkt and d.powierzchnia_m2 > 0 for d in wynik.dzialki)
+
+
 def test_mock_daje_niepusty_wynik():
     """Tryb mock musi dawać pełny, niepusty wynik offline."""
     wynik = run_level1(Level1Request(dzialki=[_pid("5")]))
@@ -61,7 +80,9 @@ def test_nieprzylegajace_blad_terminal():
     wynik = run_level1(req)
     assert wynik.status == "blad_wejscia"
     assert wynik.stan_terminalny == "S2"
-    assert "nieprzyleg" in (wynik.komunikat or "").lower()
+    assert "scalenie" in (wynik.komunikat or "").lower()
+    # geometrie działek dostępne mimo błędu (do podświetlenia przerwy na mapie)
+    assert len(wynik.dzialki) == 2
 
 
 def test_zawsze_terminal():

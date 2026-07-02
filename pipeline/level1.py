@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import List
 
 from core.config import CONFIG
-from core.schemas import Level1Request, Level1Result
+from core.schemas import DzialkaGeo, Level1Request, Level1Result
 from geo import geometry as geo
 
 from connectors import uldk, bdot, nmt, mpzp_coverage, bdl, market
@@ -23,6 +23,8 @@ from connectors.base import NOT_FOUND
 from domain import potential as dom_potential
 from domain import demand as dom_demand
 from domain import matching as dom_matching
+from domain import presentation as dom_present
+from domain.matching import KontekstOceny
 
 
 def _srednia(pewnosci: List[float]) -> float:
@@ -44,30 +46,41 @@ def run_level1(request: Level1Request) -> Level1Result:
 
     # --- S2: ULDK -> geometrie, scalenie, przyleganie --------------------
     geoms = []
+    dzialki_geo: List[DzialkaGeo] = []
+    pewnosc_uldk: List[float] = []
     for pid in request.dzialki:
         res = uldk.fetch(pid)
         pewnosci.append(res.pewnosc)
+        pewnosc_uldk.append(res.pewnosc)
         flagi.extend(res.flagi)
         if res.status == NOT_FOUND or res.dane is None:
             return Level1Result(
                 status="nieznaleziona", stan_terminalny="S2", tryb=tryb,
-                komunikat=f"Działka nieznaleziona w ULDK: {pid.uldk_id()}",
+                dzialki=dzialki_geo,
+                komunikat=f"Nie znaleziono działki {pid.numer} w rejestrze ULDK",
                 pewnosc=_srednia(pewnosci), flagi=flagi,
             )
         try:
-            geoms.append(geo.parse_wkt(res.dane))
+            g = geo.parse_wkt(res.dane)
         except Exception:
             return Level1Result(
                 status="nieznaleziona", stan_terminalny="S2", tryb=tryb,
-                komunikat=f"Niepoprawna geometria ULDK dla: {pid.uldk_id()}",
+                dzialki=dzialki_geo,
+                komunikat=f"Niepoprawna geometria ULDK dla działki {pid.numer}",
                 pewnosc=_srednia(pewnosci), flagi=flagi,
             )
+        geoms.append(g)
+        dzialki_geo.append(DzialkaGeo(id=pid.uldk_id(),
+                                      powierzchnia_m2=round(geo.powierzchnia_m2(g), 2),
+                                      wkt=g.wkt))
 
     ok_przyl, powod = geo.przylegaja(geoms)
     if not ok_przyl:
         return Level1Result(
             status="blad_wejscia", stan_terminalny="S2", tryb=tryb,
-            komunikat=f"Nieprzylegające działki: {powod}",
+            dzialki=dzialki_geo,
+            komunikat="Między wskazanymi działkami wykryto przerwę — scalenie "
+                      "w jeden teren niemożliwe.",
             pewnosc=_srednia(pewnosci), flagi=flagi,
         )
 
@@ -98,7 +111,24 @@ def run_level1(request: Level1Request) -> Level1Result:
     popyt = dom_demand.oblicz(r_bdl.dane, r_market.dane)
 
     # --- S5: dopasowanie potencjał <-> popyt -----------------------------
-    profile = dom_matching.oblicz(potencjal, popyt)
+    p_uldk = _srednia(pewnosc_uldk)
+    # pewność per profil z konektorów najbardziej istotnych dla profilu
+    pewnosc_mlodzi = _srednia([p_uldk, r_bdot.pewnosc, r_bdl.pewnosc, r_market.pewnosc])
+    pewnosc_seniorzy = _srednia([p_uldk, r_bdot.pewnosc, r_bdl.pewnosc, r_nmt.pewnosc])
+    ctx = KontekstOceny(
+        potencjal=potencjal, demo=r_bdl.dane, rynek=r_market.dane, nmt=r_nmt.dane,
+        pewnosc_mlodzi=pewnosc_mlodzi, pewnosc_seniorzy=pewnosc_seniorzy,
+    )
+    profile = dom_matching.oblicz(potencjal, popyt, ctx)
+
+    # warstwa prezentacyjna
+    flagi_sygnaly = dom_present.buduj_flagi(potencjal, r_bdl.dane, r_nmt.dane)
+    bdot_wys = getattr(r_bdot.dane, "wysokosci_pelne", None)
+    czego_nie = dom_present.buduj_braki(
+        r_bdot.status, r_nmt.status, r_bdl.status, r_market.status,
+        flaga_mpzp, bdot_wys)
+    pewnosc_ogolna = _srednia(pewnosci)
+    brama = dom_present.buduj_brame(profile, pewnosc_ogolna)
 
     # --- S6: WYNIK (terminal) --------------------------------------------
     return Level1Result(
@@ -107,10 +137,14 @@ def run_level1(request: Level1Request) -> Level1Result:
         tryb=tryb,
         powierzchnia_m2=round(powierzchnia, 2),
         geometria_wkt=scalona.wkt,
+        dzialki=dzialki_geo,
         potencjal=potencjal,
         popyt=popyt,
         profile=profile,
-        pewnosc=_srednia(pewnosci),
+        flagi_sygnaly=flagi_sygnaly,
+        czego_nie_pobrano=czego_nie,
+        brama=brama,
+        pewnosc=pewnosc_ogolna,
         flagi=flagi,
         komunikat=None,
     )

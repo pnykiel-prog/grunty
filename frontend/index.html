@@ -1,145 +1,446 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Grunty — Analiza M1 (orientacyjny potencjał)</title>
-  <style>
-    :root { --bg:#0f172a; --card:#1e293b; --acc:#38bdf8; --txt:#e2e8f0; --muted:#94a3b8; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444; }
-    * { box-sizing: border-box; }
-    body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--txt); }
-    header { padding:20px 24px; border-bottom:1px solid #334155; }
-    header h1 { margin:0; font-size:20px; }
-    header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
-    main { max-width:920px; margin:0 auto; padding:24px; }
-    .card { background:var(--card); border:1px solid #334155; border-radius:12px; padding:18px; margin-bottom:18px; }
-    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
-    .field { display:flex; flex-direction:column; gap:4px; }
-    label { font-size:12px; color:var(--muted); }
-    input { background:#0b1220; border:1px solid #334155; border-radius:8px; color:var(--txt); padding:8px 10px; width:120px; }
-    button { background:var(--acc); color:#04222f; border:0; border-radius:8px; padding:10px 16px; font-weight:600; cursor:pointer; }
-    button.secondary { background:#334155; color:var(--txt); }
-    .parcels { display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
-    .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; }
-    .pill.jest { background:#7c2d12; color:#fed7aa; }
-    .pill.brak { background:#14532d; color:#bbf7d0; }
-    .pill.nieznane { background:#334155; color:var(--muted); }
-    pre { background:#0b1220; padding:12px; border-radius:8px; overflow:auto; font-size:12px; }
-    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
-    .stat { background:#0b1220; border-radius:8px; padding:12px; }
-    .stat b { display:block; font-size:20px; }
-    .stat span { color:var(--muted); font-size:12px; }
-    .verdict-wysoki { color:var(--ok); }
-    .verdict-umiarkowany { color:var(--warn); }
-    .verdict-niski { color:var(--err); }
-    .muted { color:var(--muted); font-size:13px; }
-    .flags li { font-size:12px; color:var(--muted); }
-    .err { color:var(--err); }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GRUNT — Studium potencjału działki (M1)</title>
+<style>
+  :root{
+    --bg:#eef1f5; --panel:#fff; --ink:#0f172a; --ink2:#1e293b;
+    --muted:#64748b; --muted2:#94a3b8; --line:#e5e9f0;
+    --teal:#0f766e; --teal-dot:#14b8a6; --green:#059669; --green-bg:#dcfce7; --green-ink:#166534;
+    --purple:#7c3aed; --purple-dot:#a855f7;
+    --amber:#b45309; --amber-ink:#92400e; --amber-bg:#fffbeb; --amber-bd:#fde68a; --amber-dot:#d97706;
+    --red:#dc2626; --red-bg:#fef2f2; --red-bd:#fecaca;
+    --slate-bg:#eef2f7;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px;line-height:1.45}
+  .mono{font-family:var(--mono)}
+  .muted{color:var(--muted)}
+  .hidden{display:none!important}
+
+  /* ---- chrome / header ---- */
+  header.chrome{background:var(--panel);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:26px;padding:10px 22px;min-height:58px;flex-wrap:wrap}
+  .logo{display:flex;align-items:center;gap:10px}
+  .logo .mark{width:34px;height:34px;border-radius:8px;background:var(--ink);
+    display:grid;place-items:center}
+  .logo .mark span{width:14px;height:14px;border:2.5px solid var(--teal-dot);border-radius:3px}
+  .logo b{font-size:15px;letter-spacing:.5px}
+  .logo small{display:block;color:var(--muted2);font-size:10px;letter-spacing:1.5px;font-weight:600}
+  .hmeta{display:flex;flex-direction:column;gap:1px}
+  .hmeta .k{color:var(--muted2);font-size:10px;letter-spacing:1px;text-transform:uppercase}
+  .hmeta .v{font-family:var(--mono);font-size:13px}
+  .legend{display:flex;gap:14px;margin-left:auto;align-items:center}
+  .legend span{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+  .dot{width:9px;height:9px;border-radius:50%}
+  .dot.m{background:var(--teal-dot)} .dot.s{background:var(--purple-dot)}
+  .btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;color:var(--ink)}
+  .btn.dark{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .btn.ghost{background:transparent}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* ---- stepper ---- */
+  .stepper{background:var(--panel);border-bottom:1px solid var(--line);
+    display:flex;gap:6px;padding:12px 22px;overflow:auto}
+  .step{display:flex;align-items:center;gap:9px;padding:0 14px 0 0;white-space:nowrap}
+  .step .ico{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+    font-size:12px;font-weight:700;border:2px solid var(--line);color:var(--muted2)}
+  .step.done .ico{background:#ecfdf5;border-color:#a7f3d0;color:var(--green)}
+  .step.active .ico{background:var(--ink);border-color:var(--ink);color:#fff}
+  .step .t{font-weight:700;font-size:13px}
+  .step .s{color:var(--muted2);font-size:11px}
+  .step.pending .t{color:var(--muted2)}
+
+  main{max-width:1000px;margin:0 auto;padding:22px}
+  .subbar{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:4px 2px 16px;color:var(--muted);font-size:13px;flex-wrap:wrap}
+  .subbar .acts{display:flex;gap:8px}
+
+  /* ---- input layout ---- */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:820px){.cols{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .field{display:flex;flex-direction:column;gap:5px}
+  label{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.3px}
+  input{border:1px solid var(--line);border-radius:9px;padding:10px 11px;font-size:14px;
+    background:#fbfcfe;color:var(--ink);width:100%;font-family:var(--mono)}
+  input:focus{outline:2px solid #bfdbfe;border-color:#93c5fd}
+  .sep{height:1px;background:var(--line);margin:16px 0}
+  .parcels-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .parcels-h b{font-size:13px}
+  .prow{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+  .prow .n{width:26px;height:26px;border-radius:7px;background:var(--slate-bg);
+    display:grid;place-items:center;font-weight:700;font-size:12px;color:var(--muted);flex:none}
+  .prow input{flex:1}
+  .prow .ha{width:74px;text-align:right;color:var(--muted2);font-family:var(--mono);font-size:12px;flex:none}
+  .prow .rm{border:none;background:none;color:var(--muted2);cursor:pointer;font-size:18px;flex:none}
+  .addp{border:1px dashed var(--line);background:transparent;border-radius:9px;
+    padding:9px 14px;color:var(--muted);cursor:pointer;font-weight:600;font-size:13px}
+  .toggles{display:flex;gap:4px;background:var(--slate-bg);padding:4px;border-radius:9px;width:max-content}
+  .toggles button{border:none;background:transparent;padding:6px 12px;border-radius:6px;
+    font-size:12px;font-weight:600;color:var(--muted);cursor:pointer}
+  .toggles button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .eyebrow{color:var(--muted2);font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;margin:0 0 8px}
+
+  /* ---- map ---- */
+  .mapwrap{background:linear-gradient(0deg,#eef2f6,#f4f7fa);border:1px solid var(--line);
+    border-radius:12px;overflow:hidden;min-height:340px;display:grid;place-items:center;position:relative}
+  .mapwrap svg{width:100%;height:100%;display:block}
+  .mapnote{position:absolute;bottom:10px;left:0;right:0;text-align:center;color:var(--muted);font-size:12px}
+
+  /* ---- callouts ---- */
+  .callout{border-radius:11px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start;margin-top:16px}
+  .callout .ic{width:24px;height:24px;border-radius:50%;flex:none;display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px}
+  .callout b{display:block;margin-bottom:2px}
+  .callout.ok{background:#ecfdf5;border:1px solid #a7f3d0}
+  .callout.ok .ic{background:var(--green)}
+  .callout.warn{background:var(--amber-bg);border:1px solid var(--amber-bd)}
+  .callout.warn .ic{background:var(--amber-dot)}
+  .callout.warn b{color:var(--amber-ink)}
+  .callout.err{background:var(--red-bg);border:1px solid var(--red-bd)}
+  .callout.err .ic{background:var(--red)}
+  .callout.err b{color:#991b1b}
+
+  .cta-row{display:flex;gap:10px;margin-top:16px}
+  .btn.cta{background:var(--ink);color:#fff;border-color:var(--ink);padding:12px 20px;font-size:14px}
+
+  /* ---- loading modal ---- */
+  .overlay{position:fixed;inset:0;background:rgba(15,23,42,.92);display:grid;place-items:center;z-index:50;padding:20px}
+  .lmodal{background:var(--panel);border-radius:16px;padding:26px 28px;max-width:560px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+  .lmodal .top{display:flex;align-items:center;gap:14px}
+  .spin{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--teal-dot);animation:sp 1s linear infinite;flex:none}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .lmodal h3{margin:0;font-size:16px}
+  .lmodal .pct{margin-left:auto;font-size:26px;font-weight:800}
+  .bar{height:7px;background:var(--slate-bg);border-radius:99px;overflow:hidden;margin:16px 0}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,#1e293b,#38bdf8);width:0;transition:width .3s}
+  .src{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+  .src .b{width:20px;height:20px;border-radius:50%;flex:none;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:800}
+  .src .b.ok{background:var(--green)} .src .b.wp{background:var(--amber-dot)}
+  .src .st{margin-left:auto;font-family:var(--mono);font-size:12px}
+  .src .st.ok{color:var(--green)} .src .st.wp{color:var(--amber)}
+
+  /* ---- result ---- */
+  .res-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+  h1{font-size:26px;margin:2px 0 0}
+  .vcards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:820px){.vcards{grid-template-columns:1fr}}
+  .vcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;position:relative}
+  .vcard.reco{border-color:#0f172a;box-shadow:0 0 0 1px #0f172a}
+  .vhead{display:flex;align-items:center;gap:9px;padding:14px 16px}
+  .vhead.m{background:#f0fdfa} .vhead.s{background:#faf5ff}
+  .reco-badge{position:absolute;top:0;right:0;background:var(--ink);color:#fff;font-size:11px;
+    font-weight:700;padding:6px 12px;border-bottom-left-radius:10px;display:flex;gap:5px;align-items:center}
+  .vbody{padding:16px}
+  .vtop{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .verd{font-size:26px;font-weight:800}
+  .verd.nadaje_sie{color:var(--green)} .verd.warunkowo{color:var(--amber)} .verd.nie{color:var(--red)}
+  .score{font-size:46px;font-weight:800;line-height:1}
+  .score s{font-size:15px;color:var(--muted2);font-weight:600;text-decoration:none}
+  .pew{display:flex;align-items:center;gap:8px;margin:12px 0 4px}
+  .pew .lab{font-size:11px;letter-spacing:1px;color:var(--muted);font-weight:700}
+  .pdot{width:10px;height:10px;border-radius:50%;background:var(--line)}
+  .pdot.on{background:var(--ink2)}
+  .siglist{list-style:none;padding:0;margin:12px 0 0}
+  .siglist li{position:relative;padding-left:16px;color:var(--ink2);margin:7px 0;font-size:13px}
+  .siglist li:before{content:"—";position:absolute;left:0;color:var(--muted2)}
+
+  .panels{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+  @media(max-width:820px){.panels{grid-template-columns:1fr}}
+  .panel-t{font-weight:700;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  .cnt{background:var(--slate-bg);color:var(--muted);border-radius:99px;padding:1px 9px;font-size:12px;font-weight:700}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:inline-flex;align-items:center;gap:7px;border-radius:99px;padding:6px 12px;font-size:12.5px;font-weight:600}
+  .chip .cd{width:8px;height:8px;border-radius:50%}
+  .chip.warning{background:var(--amber-bg);border:1px solid var(--amber-bd);color:var(--amber-ink)} .chip.warning .cd{background:var(--amber-dot)}
+  .chip.positive{background:var(--green-bg);color:var(--green-ink)} .chip.positive .cd{background:var(--green)}
+  .chip.neutral{background:var(--slate-bg);color:var(--muted)} .chip.neutral .cd{background:var(--muted2)}
+  .brak{border:1px solid var(--line);border-radius:11px;padding:13px;margin-bottom:10px}
+  .brak b{display:block}
+  .brak .imp{font-family:var(--mono);font-size:12px;color:var(--amber)}
+
+  .gate{background:linear-gradient(120deg,#1e293b,#0f172a);color:#fff;border-radius:14px;
+    padding:20px;margin-top:18px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .gate .txt{flex:1;min-width:240px}
+  .gate .txt b{font-size:16px}
+  .gate .txt p{margin:5px 0 0;color:#cbd5e1;font-size:13px}
+  .gate .pill{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+    border-radius:10px;padding:9px 14px;text-align:center}
+  .gate .pill .k{font-size:11px;color:#94a3b8} .gate .pill .v{font-size:18px;font-weight:800}
+  .gate .btn{border-color:rgba(255,255,255,.25)}
+  .gate .btn.ghost{background:transparent;color:#fff}
+  .gate.fail{background:linear-gradient(120deg,#7f1d1d,#450a0a)}
+  .disabled-note{font-size:12px;color:var(--muted2);margin-top:6px}
+</style>
 </head>
 <body>
-  <header>
-    <h1>Grunty — Moduł M1</h1>
-    <p>Orientacyjny potencjał zabudowy z sąsiedztwa + popyt (mock/live). Wynik nie jest odczytem planu miejscowego.</p>
-  </header>
-  <main>
-    <div class="card">
-      <div class="parcels" id="parcels"></div>
-      <div class="row">
-        <button class="secondary" id="add">+ dodaj działkę</button>
-        <button id="analyze">Analizuj</button>
-        <span class="muted" id="mode"></span>
+
+<header class="chrome">
+  <div class="logo"><div class="mark"><span></span></div>
+    <div><b>GRUNT</b><small>STUDIUM POTENCJAŁU DZIAŁKI</small></div></div>
+  <div class="hmeta"><div class="k">Teren inwestycji</div><div class="v" id="h-teren">—</div></div>
+  <div class="hmeta"><div class="k">Powierzchnia</div><div class="v" id="h-pow">—</div></div>
+  <div class="legend"><span><i class="dot m"></i>Młodzi</span><span><i class="dot s"></i>Seniorzy</span></div>
+  <button class="btn ghost" id="h-report" disabled>↓ Raport P1</button>
+</header>
+
+<div class="stepper" id="stepper"></div>
+
+<main>
+  <div class="subbar">
+    <span id="subbar-l">Wejście · identyfikacja działki i walidacja terenu</span>
+    <span class="muted" id="mode-badge"></span>
+  </div>
+
+  <!-- WEJŚCIE -->
+  <section id="view-input">
+    <div class="cols">
+      <div class="card">
+        <div class="grid2">
+          <div class="field"><label>TERYT gminy (WWPPGG)</label><input id="teryt" value="146501" /></div>
+          <div class="field"><label>Rodzaj gminy</label><input id="rodzaj" value="1" /></div>
+          <div class="field"><label>Obręb</label><input id="obreb" value="0010" /></div>
+          <div class="field"><label>Arkusz (opcjonalnie)</label><input id="arkusz" value="" /></div>
+        </div>
+        <div class="sep"></div>
+        <div class="parcels-h"><b>Numery działek</b>
+          <span class="muted" style="font-size:12px">osobne pola → identyfikator ULDK</span></div>
+        <div id="parcels"></div>
+        <button class="addp" id="add">+ Dodaj działkę</button>
+        <div class="sep"></div>
+        <p class="eyebrow">Scenariusze demonstracyjne (tryb mock)</p>
+        <div class="toggles" id="scenarios">
+          <button data-s="sukces" class="on">Sukces</button>
+          <button data-s="nieznaleziona">Nieznaleziona</button>
+          <button data-s="nieprzylegajace">Nieprzylegające</button>
+        </div>
+        <div class="cta-row"><button class="btn cta" id="analyze">Analizuj teren → Poziom 1</button></div>
+      </div>
+      <div class="card" style="padding:12px">
+        <div class="mapwrap" id="map-input">
+          <div class="mapnote" id="map-input-note">podgląd geometrii pojawi się po analizie</div>
+        </div>
+        <div id="input-callout"></div>
       </div>
     </div>
-    <div id="result"></div>
-  </main>
+  </section>
 
-  <script>
-    const parcelsEl = document.getElementById('parcels');
+  <!-- POZIOM 1 -->
+  <section id="view-result" class="hidden"></section>
+</main>
 
-    function parcelRow(v = {}) {
-      const div = document.createElement('div');
-      div.className = 'row parcel';
-      div.innerHTML = `
-        <div class="field"><label>TERYT (WWPPGG)</label><input class="teryt" value="${v.teryt||'146501'}" /></div>
-        <div class="field"><label>rodzaj gminy</label><input class="rodzaj" value="${v.rodzaj_gminy||'1'}" /></div>
-        <div class="field"><label>obręb</label><input class="obreb" value="${v.obreb||'0001'}" /></div>
-        <div class="field"><label>numer działki</label><input class="numer" value="${v.numer||'1'}" /></div>
-        <div class="field"><label>arkusz (opc.)</label><input class="arkusz" value="${v.arkusz||''}" /></div>
-        <button class="secondary rm" title="usuń">×</button>`;
-      div.querySelector('.rm').onclick = () => div.remove();
-      return div;
-    }
+<!-- LOADING -->
+<div class="overlay hidden" id="overlay">
+  <div class="lmodal">
+    <div class="top"><div class="spin"></div>
+      <div><h3 id="l-title">Liczę szybki przesiew…</h3>
+        <div class="muted mono" id="l-sub" style="font-size:12px">Teren inwestycji</div></div>
+      <div class="pct" id="l-pct">0%</div></div>
+    <div class="bar"><i id="l-bar"></i></div>
+    <p class="eyebrow" style="margin:6px 0 0">Źródła danych</p>
+    <div id="l-src"></div>
+    <p class="muted" style="font-size:12px;margin-top:14px">Brak danej nie zatrzymuje analizy — wynik powstaje na podstawie dostępnych źródeł, a brakujące pozycje obniżają pewność.</p>
+  </div>
+</div>
 
-    function addParcel(v) { parcelsEl.appendChild(parcelRow(v)); }
-    document.getElementById('add').onclick = () => addParcel();
-    addParcel({ numer: '1' });
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const STEPS=[["Wejście","Działka"],["Poziom 1","Szybki przesiew"],["Poziom 2","Ocena + model"],["Poziom 3","Model finansowy"],["Raport","Studium"]];
+const SOURCES=[["ULDK","geometria i powierzchnia"],["GUS BDL","demografia gminy"],["BDOT10k","sąsiedztwo zabudowy"],["NMT","spadek terenu"],["MPZP / KIMPZP","flaga planu"],["Rejestr rynku","najem i sprzedaż"]];
 
-    function collect() {
-      return [...document.querySelectorAll('.parcel')].map(r => {
-        const g = c => r.querySelector('.' + c).value.trim();
-        const p = { teryt: g('teryt'), rodzaj_gminy: g('rodzaj'), obreb: g('obreb'), numer: g('numer') };
-        const ar = g('arkusz'); if (ar) p.arkusz = ar;
-        return p;
-      });
-    }
+function renderStepper(active){
+  $("#stepper").innerHTML=STEPS.map((s,i)=>{
+    const cls=i<active?"done":i===active?"active":"pending";
+    const ico=i<active?"✓":(i+1);
+    return `<div class="step ${cls}"><div class="ico">${ico}</div><div><div class="t">${s[0]}</div><div class="s">${s[1]}</div></div></div>`;
+  }).join("");
+}
+renderStepper(0);
 
-    fetch('/api/health').then(r => r.json()).then(d => {
-      document.getElementById('mode').textContent = 'tryb: ' + d.tryb;
-    });
+fetch('/api/health').then(r=>r.json()).then(d=>{$("#mode-badge").textContent="tryb: "+d.tryb});
 
-    function vClass(w){ if(w.startsWith('wysoki')) return 'verdict-wysoki'; if(w.startsWith('umiarkowany')) return 'verdict-umiarkowany'; return 'verdict-niski'; }
+/* ---- parcels ---- */
+const parcelsEl=$("#parcels");
+function prow(v=""){
+  const d=document.createElement("div");d.className="prow";
+  d.innerHTML=`<div class="n"></div><input class="numer" value="${v}" placeholder="np. 142/7"/><div class="ha">— ha</div><button class="rm" title="usuń">×</button>`;
+  d.querySelector(".rm").onclick=()=>{d.remove();reindex()};
+  return d;
+}
+function reindex(){$$(".prow").forEach((r,i)=>r.querySelector(".n").textContent=i+1)}
+function setParcels(nums){parcelsEl.innerHTML="";nums.forEach(n=>parcelsEl.appendChild(prow(n)));reindex()}
+$("#add").onclick=()=>{parcelsEl.appendChild(prow(""));reindex()};
+setParcels(["142/7","142/8"]);
 
-    document.getElementById('analyze').onclick = async () => {
-      const resEl = document.getElementById('result');
-      resEl.innerHTML = '<div class="card muted">Analizuję…</div>';
-      try {
-        const resp = await fetch('/api/analyze/level1', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dzialki: collect() })
-        });
-        const d = await resp.json();
-        render(d);
-      } catch (e) {
-        resEl.innerHTML = `<div class="card err">Błąd połączenia: ${e}</div>`;
-      }
-    };
+/* ---- scenarios ---- */
+const SCEN={sukces:["142/7","142/8"],nieznaleziona:["999"],nieprzylegajace:["142/7","151/5"]};
+$$("#scenarios button").forEach(b=>b.onclick=()=>{
+  $$("#scenarios button").forEach(x=>x.classList.remove("on"));b.classList.add("on");
+  setParcels(SCEN[b.dataset.s]); $("#input-callout").innerHTML=""; drawMap("#map-input",[],null);
+  $("#map-input-note").classList.remove("hidden");
+});
 
-    function render(d) {
-      const resEl = document.getElementById('result');
-      if (d.status !== 'ok') {
-        resEl.innerHTML = `<div class="card"><h3 class="err">Wynik: ${d.status} (stan ${d.stan_terminalny})</h3>
-          <p>${d.komunikat||''}</p>
-          <ul class="flags">${(d.flagi||[]).map(f=>`<li>${f}</li>`).join('')}</ul></div>`;
-        return;
-      }
-      const p = d.potencjal, po = d.popyt, pr = d.profile;
-      resEl.innerHTML = `
-        <div class="card">
-          <h3>Wynik (stan ${d.stan_terminalny}) · pewność ${(d.pewnosc*100).toFixed(0)}%</h3>
-          <div class="grid">
-            <div class="stat"><b>${d.powierzchnia_m2} m²</b><span>powierzchnia (scalona)</span></div>
-            <div class="stat"><b>${p.pum_m2} m²</b><span>PUM (orientacyjny)</span></div>
-            <div class="stat"><b>${p.mieszkania_mlodzi}/${p.mieszkania_seniorzy}</b><span>mieszkania młodzi/seniorzy</span></div>
-            <div class="stat"><b>${p.intensywnosc_otoczenia}</b><span>intensywność otoczenia</span></div>
-            <div class="stat"><b>${p.korekta_spadku}</b><span>korekta spadku (NMT)</span></div>
-            <div class="stat"><b><span class="pill ${p.flaga_mpzp}">MPZP: ${p.flaga_mpzp}</span></b><span>${p.etykieta}</span></div>
-          </div>
-        </div>
-        <div class="card">
-          <h3>Popyt i dopasowanie profili</h3>
-          <div class="grid">
-            <div class="stat"><b class="${vClass(pr.mlodzi.werdykt)}">${pr.mlodzi.dopasowanie}</b>
-              <span>MŁODZI — ${pr.mlodzi.werdykt}<br>wew ${po.mlodzi.wew} / zew ${po.mlodzi.zew}</span></div>
-            <div class="stat"><b class="${vClass(pr.seniorzy.werdykt)}">${pr.seniorzy.dopasowanie}</b>
-              <span>SENIORZY — ${pr.seniorzy.werdykt}<br>wew ${po.seniorzy.wew} / zew ${po.seniorzy.zew}</span></div>
-          </div>
-        </div>
-        <div class="card">
-          <h3>Flagi i degradacje</h3>
-          <ul class="flags">${(d.flagi||[]).map(f=>`<li>${f}</li>`).join('') || '<li>brak</li>'}</ul>
-        </div>`;
-    }
-  </script>
+function collect(){
+  const base={teryt:$("#teryt").value.trim(),rodzaj_gminy:$("#rodzaj").value.trim(),
+    obreb:$("#obreb").value.trim()};
+  const ar=$("#arkusz").value.trim();
+  return $$(".numer").map(i=>{const p={...base,numer:i.value.trim()};if(ar)p.arkusz=ar;return p});
+}
+
+/* ---- WKT map ---- */
+function parseWKT(w){
+  const m=w&&w.match(/\(\(([^)]*)\)\)/);if(!m)return null;
+  return m[1].split(",").map(p=>p.trim().split(/\s+/).map(Number));
+}
+function drawMap(sel,dzialki,ok){
+  const wrap=$(sel);const note=wrap.querySelector(".mapnote");
+  const polys=dzialki.map(d=>parseWKT(d.wkt)).filter(Boolean);
+  if(!polys.length){wrap.querySelectorAll("svg").forEach(s=>s.remove());return;}
+  if(note)note.classList.add("hidden");
+  const pts=polys.flat();
+  let minx=Math.min(...pts.map(p=>p[0])),maxx=Math.max(...pts.map(p=>p[0]));
+  let miny=Math.min(...pts.map(p=>p[1])),maxy=Math.max(...pts.map(p=>p[1]));
+  const pad=Math.max((maxx-minx),(maxy-miny))*0.35+8;
+  minx-=pad;maxx+=pad;miny-=pad;maxy+=pad;
+  const W=maxx-minx,H=maxy-miny,VW=440,VH=320;
+  const sx=VW/W,sy=VH/H,s=Math.min(sx,sy);
+  const ox=(VW-W*s)/2,oy=(VH-H*s)/2;
+  const tx=x=>ox+(x-minx)*s, ty=y=>VH-(oy+(y-miny)*s);
+  const fill= ok===false ? "#fecaca" : "#c7d2e4";
+  const stroke= ok===false ? "#dc2626" : "#334155";
+  let grid="";for(let i=0;i<=8;i++){const gx=i/8*VW,gy=i/8*VH;grid+=`<line x1="${gx}" y1="0" x2="${gx}" y2="${VH}" stroke="#dbe3ec"/><line x1="0" y1="${gy}" x2="${VW}" y2="${gy}" stroke="#dbe3ec"/>`}
+  const shapes=polys.map((poly,i)=>{
+    const pth=poly.map(p=>`${tx(p[0]).toFixed(1)},${ty(p[1]).toFixed(1)}`).join(" ");
+    const c=poly.reduce((a,p)=>[a[0]+p[0],a[1]+p[1]],[0,0]).map(v=>v/poly.length);
+    return `<polygon points="${pth}" fill="${fill}" fill-opacity=".7" stroke="${stroke}" stroke-width="1.6"/>
+      <text x="${tx(c[0])}" y="${ty(c[1])}" font-size="11" font-family="ui-monospace" fill="#1e293b" text-anchor="middle" dy="4">${(dzialki[i].id||"").split(".").pop()}</text>`;
+  }).join("");
+  let gap="";
+  if(ok===false&&polys.length>=2){
+    const c0=polys[0].reduce((a,p)=>[a[0]+p[0],a[1]+p[1]],[0,0]).map(v=>v/polys[0].length);
+    const c1=polys[1].reduce((a,p)=>[a[0]+p[0],a[1]+p[1]],[0,0]).map(v=>v/polys[1].length);
+    gap=`<line x1="${tx(c0[0])}" y1="${ty(c0[1])}" x2="${tx(c1[0])}" y2="${ty(c1[1])}" stroke="#dc2626" stroke-width="2" stroke-dasharray="5 5"/>`;
+  }
+  wrap.querySelectorAll("svg").forEach(s=>s.remove());
+  const svg=`<svg viewBox="0 0 ${VW} ${VH}" preserveAspectRatio="xMidYMid meet">${grid}${gap}${shapes}</svg>`;
+  wrap.insertAdjacentHTML("afterbegin",svg);
+}
+
+/* ---- loading animation ---- */
+function runLoading(){
+  return new Promise(res=>{
+    $("#overlay").classList.remove("hidden");
+    $("#l-src").innerHTML=SOURCES.map(s=>`<div class="src"><div class="b" data-b>·</div><div><b>${s[0]}</b> <span class="muted">— ${s[1]}</span></div><div class="st" data-st>…</div></div>`).join("");
+    const srcs=$$("#l-src .src");let done=0;const total=srcs.length;
+    let pct=0;const bar=$("#l-bar"),pctEl=$("#l-pct");
+    const iv=setInterval(()=>{
+      pct=Math.min(100,pct+7);bar.style.width=pct+"%";pctEl.textContent=pct+"%";
+      const should=Math.floor(pct/100*total);
+      while(done<should){const wp=SOURCES[done][0].startsWith("MPZP");
+        srcs[done].querySelector("[data-b]").outerHTML=`<div class="b ${wp?'wp':'ok'}">${wp?'!':'✓'}</div>`;
+        const st=srcs[done].querySelector("[data-st]");st.textContent=wp?"biała plama":"pobrano";st.className="st "+(wp?"wp":"ok");
+        done++;}
+      if(pct>=100){clearInterval(iv);setTimeout(res,320)}
+    },95);
+  });
+}
+
+/* ---- analyze ---- */
+$("#analyze").onclick=async()=>{
+  const scen=$("#scenarios button.on").dataset.s;
+  $("#input-callout").innerHTML="";
+  const loading=runLoading();
+  let d;
+  try{
+    const resp=await fetch('/api/analyze/level1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dzialki:collect()})});
+    d=await resp.json();
+  }catch(e){d={status:"blad",komunikat:"Błąd połączenia: "+e,stan_terminalny:"S0"}}
+  await loading;
+  $("#overlay").classList.add("hidden");
+  if(d.status==="ok"){showResult(d)} else {showInputError(d)}
+};
+
+function resetHeader(){
+  $("#h-teren").textContent="—";$("#h-pow").textContent="—";$("#h-report").disabled=true;
+}
+function showInputError(d){
+  renderStepper(0);resetHeader();
+  drawMap("#map-input",d.dzialki||[],false);
+  const nieprzyl=d.status==="blad_wejscia"&&d.stan_terminalny==="S2";
+  const kind=nieprzyl?"warn":"err";
+  const title=d.status==="nieznaleziona"?"Nie znaleziono działki w rejestrze ULDK":
+    nieprzyl?"Działki nie przylegają do siebie":"Nie można przetworzyć wejścia";
+  const ic=kind==="err"?"✕":"!";
+  $("#input-callout").innerHTML=`<div class="callout ${kind}"><div class="ic">${ic}</div>
+    <div><b>${title}</b><span class="muted">${d.komunikat||""}</span></div></div>`;
+  if(d.status==="nieznaleziona"){$("#map-input-note").textContent="Brak geometrii w rejestrze ULDK";$("#map-input-note").classList.remove("hidden");}
+}
+
+function dots(p){let n=Math.round(p*5);let h="";for(let i=0;i<5;i++)h+=`<i class="pdot ${i<n?'on':''}"></i>`;return h}
+function ha(m2){return (m2/10000).toFixed(2).replace('.',',')+" ha";}
+
+function showResult(d){
+  renderStepper(1);
+  $("#h-teren").textContent=(d.dzialki[0]?.id||"").replace(/\.\d+(\/\d+)?$/,"")+" · "+d.dzialki.map(x=>x.id.split(".").pop()).join("+");
+  $("#h-pow").textContent=ha(d.powierzchnia_m2)+" ("+Math.round(d.powierzchnia_m2).toLocaleString('pl')+" m²)";
+  $("#h-report").disabled=false;
+  $("#subbar-l").textContent="Poziom 1 · szybki przesiew — orientacyjny potencjał (nie jest odczytem planu)";
+  $$(".numer").forEach((inp,i)=>{const dz=d.dzialki[i];if(dz)inp.closest(".prow").querySelector(".ha").textContent=ha(dz.powierzchnia_m2)});
+
+  const partial=(d.czego_nie_pobrano||[]).length>0;
+  const vcard=(p,key,reco)=>{
+    const cls=key==="mlodzi"?"m":"s";const name=key==="mlodzi"?"Młodzi":"Seniorzy";
+    return `<div class="vcard ${reco?'reco':''}">
+      ${reco?'<div class="reco-badge">★ REKOMENDOWANY PROFIL</div>':''}
+      <div class="vhead ${cls}"><i class="dot ${cls}"></i><b>Profil: ${name}</b></div>
+      <div class="vbody">
+        <div class="vtop"><div class="verd ${p.kategoria}">${p.werdykt}</div>
+          <div class="score">${p.score}<s>/100</s></div></div>
+        <div class="pew"><span class="lab">PEWNOŚĆ</span>${dots(p.pewnosc)}<span class="muted" style="font-size:12px">${Math.round(p.pewnosc*100)}%</span></div>
+        <ul class="siglist">${p.sygnaly.map(s=>`<li>${s}</li>`).join("")}</ul>
+      </div></div>`;
+  };
+  const pr=d.profile;
+  const partialCallout=partial?`<div class="callout warn" style="margin:0;max-width:420px">
+    <div class="ic">!</div><div><b>Wynik częściowy</b><span class="muted">${d.czego_nie_pobrano.length} źródło niedostępne — pewność obniżona</span></div></div>`:"";
+
+  const chips=(d.flagi_sygnaly||[]).map(s=>`<span class="chip ${s.typ}"><i class="cd"></i>${s.tekst}</span>`).join("");
+  const braki=(d.czego_nie_pobrano||[]).map(b=>`<div class="brak"><b>${b.tytul}</b><span class="muted">${b.opis}</span><br><span class="imp">pewność ${b.wplyw_pkt} pkt</span></div>`).join("")||'<p class="muted">Wszystkie źródła M1 pobrane.</p>';
+
+  const g=d.brama;const gfail=!g.przechodzi;
+  const gate=`<div class="gate ${gfail?'fail':''}">
+    <div class="txt"><b>${g.etykieta}</b><p>Pełniejszą ocenę — z uzupełnieniem brakujących danych i podniesieniem pewności — uzyskasz w Poziomie 2.</p></div>
+    <div class="pill"><div class="k">Pewność wstępna</div><div class="v">${Math.round(g.pewnosc_wstepna*100)}%</div></div>
+    <button class="btn dark" id="dl-p1">Pobierz wynik P1</button>
+    <button class="btn ghost" disabled>Ocena profesjonalna · Poziom 2 →</button>
+  </div><div class="disabled-note">Poziom 2 poza zakresem modułu M1.</div>`;
+
+  $("#view-input").classList.add("hidden");
+  const R=$("#view-result");R.classList.remove("hidden");
+  R.innerHTML=`
+    <div class="res-head">
+      <div><p class="eyebrow" style="color:var(--teal)">Poziom 1 · Szybki przesiew</p>
+        <h1>Wynik wstępnej oceny terenu</h1></div>
+      ${partialCallout}
+    </div>
+    <div class="vcards">${vcard(pr.mlodzi,"mlodzi",pr.rekomendowany==="mlodzi")}${vcard(pr.seniorzy,"seniorzy",pr.rekomendowany==="seniorzy")}</div>
+    <div class="panels">
+      <div class="card"><p class="panel-t">Flagi i sygnały</p><div class="chips">${chips}</div></div>
+      <div class="card"><p class="panel-t">Czego nie pobrano <span class="cnt">${(d.czego_nie_pobrano||[]).length}</span></p>${braki}</div>
+    </div>
+    ${gate}
+    <div style="margin-top:16px"><button class="btn" id="back">← Nowa analiza</button></div>`;
+  $("#back").onclick=()=>{R.classList.add("hidden");$("#view-input").classList.remove("hidden");renderStepper(0);resetHeader();$("#input-callout").innerHTML="";drawMap("#map-input",[],null);$("#map-input-note").classList.remove("hidden");$("#subbar-l").textContent="Wejście · identyfikacja działki i walidacja terenu";window.scrollTo(0,0)};
+  const dl=()=>{const blob=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="wynik_P1.json";a.click()};
+  $("#dl-p1").onclick=dl;$("#h-report").onclick=dl;
+  window.scrollTo(0,0);
+}
+</script>
 </body>
 </html>

@@ -31,10 +31,23 @@ def _leading_int(numer: str) -> int:
         return abs(hash(numer)) % 1000
 
 
+def _suffix_int(numer: str) -> int:
+    parts = numer.split("/")
+    if len(parts) < 2:
+        return 0
+    try:
+        return int(parts[1])
+    except ValueError:
+        return 0
+
+
 def _mock_wkt(pid: ParcelId) -> str:
-    k = _leading_int(pid.numer)
-    x0 = _MOCK_BASE_X + k * _MOCK_SIDE
-    y0 = _MOCK_BASE_Y
+    # x wg numeru głównego (sąsiednie numery stykają się bokiem),
+    # y wg sufiksu po '/' (np. 142/7 i 142/8 przylegają pionowo, są odrębne).
+    kx = _leading_int(pid.numer)
+    ky = _suffix_int(pid.numer)
+    x0 = _MOCK_BASE_X + kx * _MOCK_SIDE
+    y0 = _MOCK_BASE_Y + ky * _MOCK_SIDE
     x1 = x0 + _MOCK_SIDE
     y1 = y0 + _MOCK_SIDE
     return (
@@ -64,6 +77,11 @@ def _parse_live(body: str) -> ConnectorResult:
 def fetch(pid: ParcelId) -> ConnectorResult:
     """Zwraca geometrię działki (WKT). Jedna próba + timeout."""
     if CONFIG.is_mock:
+        # sentinel: numer 999 -> działka nieznaleziona (do demonstracji stanu S2)
+        if _leading_int(pid.numer) == 999:
+            return ConnectorResult(
+                dane=None, status=NOT_FOUND, pewnosc=0.0, zrodlo="uldk(mock)",
+                flagi=[f"uldk(mock): status=nieznaleziona ({pid.numer})"])
         return ConnectorResult(dane=_mock_wkt(pid), status=OK, pewnosc=0.9,
                                zrodlo="uldk(mock)")
     try:
