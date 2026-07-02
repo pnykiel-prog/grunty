@@ -71,9 +71,57 @@ class ParcelId(BaseModel):
             return f"{head}.AR_{self.arkusz}.{self.numer}"
         return f"{head}.{self.numer}"
 
+    @classmethod
+    def from_uldk_id(cls, raw: str) -> "ParcelId":
+        """Parsuje pełny identyfikator ULDK ``WWPPGG_R.XXXX[.AR_n].NDZ``.
+
+        Umożliwia wprowadzanie działki jednym polem zamiast osobnych pól.
+        Walidacja poszczególnych segmentów odbywa się w walidatorach pól.
+        """
+        s = (raw or "").strip()
+        if "_" not in s or "." not in s:
+            raise ValueError(
+                "Identyfikator ULDK musi mieć format WWPPGG_R.XXXX[.AR_n].NDZ")
+        teryt, rest = s.split("_", 1)
+        parts = rest.split(".")
+        if len(parts) < 3:
+            raise ValueError("Identyfikator ULDK: za mało segmentów")
+        rodzaj, obreb = parts[0], parts[1]
+        arkusz = None
+        idx = 2
+        if parts[idx].upper().startswith("AR_"):
+            arkusz = parts[idx][3:]
+            idx += 1
+        if idx >= len(parts):
+            raise ValueError("Identyfikator ULDK: brak numeru działki")
+        numer = ".".join(parts[idx:])
+        return cls(teryt=teryt, rodzaj_gminy=rodzaj, obreb=obreb,
+                   numer=numer, arkusz=arkusz)
+
+
+def parse_dzialka(item) -> ParcelId:
+    """Buduje ParcelId z pozycji wejścia — pola osobne LUB pełny identyfikator.
+
+    Klient może przesłać:
+      - obiekt z osobnymi polami (teryt/rodzaj_gminy/obreb/numer[/arkusz]),
+      - obiekt z pełnym identyfikatorem: ``{"id": "WWPPGG_R.XXXX.NDZ"}``.
+    """
+    if isinstance(item, ParcelId):
+        return item
+    if isinstance(item, dict) and item.get("id") and not item.get("teryt"):
+        return ParcelId.from_uldk_id(str(item["id"]))
+    return ParcelId.model_validate(item)
+
 
 class Level1Request(BaseModel):
     dzialki: List[ParcelId] = Field(..., min_length=1)
+
+    @classmethod
+    def from_items(cls, items) -> "Level1Request":
+        """Tworzy żądanie z listy pozycji mieszanych (pola lub identyfikator)."""
+        if not isinstance(items, list) or not items:
+            raise ValueError("Brak działek na wejściu.")
+        return cls(dzialki=[parse_dzialka(x) for x in items])
 
 
 # ---------------------------------------------------------------------------

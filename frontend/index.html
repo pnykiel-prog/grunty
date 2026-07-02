@@ -202,15 +202,21 @@
   <section id="view-input">
     <div class="cols">
       <div class="card">
-        <div class="grid2">
+        <p class="eyebrow">Sposób wprowadzania działki</p>
+        <div class="toggles" id="mode">
+          <button data-m="pola" class="on">Pola gminy + numery</button>
+          <button data-m="id">Pełny identyfikator ULDK</button>
+        </div>
+        <div class="sep"></div>
+        <div id="gmina-grid" class="grid2">
           <div class="field"><label>TERYT gminy (WWPPGG)</label><input id="teryt" value="146501" /></div>
           <div class="field"><label>Rodzaj gminy</label><input id="rodzaj" value="1" /></div>
           <div class="field"><label>Obręb</label><input id="obreb" value="0010" /></div>
           <div class="field"><label>Arkusz (opcjonalnie)</label><input id="arkusz" value="" /></div>
+          <div class="sep" style="grid-column:1/-1;margin:4px 0"></div>
         </div>
-        <div class="sep"></div>
-        <div class="parcels-h"><b>Numery działek</b>
-          <span class="muted" style="font-size:12px">osobne pola → identyfikator ULDK</span></div>
+        <div class="parcels-h"><b id="parcels-title">Numery działek</b>
+          <span class="muted" style="font-size:12px" id="parcels-hint">osobne pola → identyfikator ULDK</span></div>
         <div id="parcels"></div>
         <button class="addp" id="add">+ Dodaj działkę</button>
         <div class="sep"></div>
@@ -265,28 +271,52 @@ renderStepper(0);
 
 fetch('/api/health').then(r=>r.json()).then(d=>{$("#mode-badge").textContent="tryb: "+d.tryb});
 
+/* ---- tryb wprowadzania: 'pola' | 'id' ---- */
+let mode='pola';
+const PH={pola:"np. 142/7", id:"np. 146501_1.0010.142/7"};
+
 /* ---- parcels ---- */
 const parcelsEl=$("#parcels");
 function prow(v=""){
   const d=document.createElement("div");d.className="prow";
-  d.innerHTML=`<div class="n"></div><input class="numer" value="${v}" placeholder="np. 142/7"/><div class="ha">— ha</div><button class="rm" title="usuń">×</button>`;
+  d.innerHTML=`<div class="n"></div><input class="numer" value="${v}" placeholder="${PH[mode]}"/><div class="ha">— ha</div><button class="rm" title="usuń">×</button>`;
   d.querySelector(".rm").onclick=()=>{d.remove();reindex()};
   return d;
 }
 function reindex(){$$(".prow").forEach((r,i)=>r.querySelector(".n").textContent=i+1)}
 function setParcels(nums){parcelsEl.innerHTML="";nums.forEach(n=>parcelsEl.appendChild(prow(n)));reindex()}
 $("#add").onclick=()=>{parcelsEl.appendChild(prow(""));reindex()};
-setParcels(["142/7","142/8"]);
 
-/* ---- scenarios ---- */
-const SCEN={sukces:["142/7","142/8"],nieznaleziona:["999"],nieprzylegajace:["142/7","151/5"]};
+/* ---- scenariusze (wartości zależne od trybu) ---- */
+const SCEN_NUM={sukces:["142/7","142/8"],nieznaleziona:["999"],nieprzylegajace:["142/7","151/5"]};
+const ID_BASE="146501_1.0010.";
+function scenVals(s){return mode==='pola'?SCEN_NUM[s]:SCEN_NUM[s].map(n=>ID_BASE+n)}
+function activeScen(){return $("#scenarios button.on").dataset.s}
+
 $$("#scenarios button").forEach(b=>b.onclick=()=>{
   $$("#scenarios button").forEach(x=>x.classList.remove("on"));b.classList.add("on");
-  setParcels(SCEN[b.dataset.s]); $("#input-callout").innerHTML=""; drawMap("#map-input",[],null);
+  setParcels(scenVals(b.dataset.s)); $("#input-callout").innerHTML=""; drawMap("#map-input",[],null);
   $("#map-input-note").classList.remove("hidden");
 });
 
+/* ---- przełącznik trybu wprowadzania ---- */
+$$("#mode button").forEach(b=>b.onclick=()=>{
+  $$("#mode button").forEach(x=>x.classList.remove("on"));b.classList.add("on");
+  mode=b.dataset.m;
+  $("#gmina-grid").classList.toggle("hidden",mode==='id');
+  $("#parcels-title").textContent=mode==='id'?"Identyfikatory działek (ULDK)":"Numery działek";
+  $("#parcels-hint").textContent=mode==='id'?"pełny identyfikator WWPPGG_R.XXXX[.AR_n].NDZ":"osobne pola → identyfikator ULDK";
+  setParcels(scenVals(activeScen()));
+  $("#input-callout").innerHTML=""; drawMap("#map-input",[],null); $("#map-input-note").classList.remove("hidden");
+});
+
+// stan początkowy
+setParcels(scenVals("sukces"));
+
 function collect(){
+  if(mode==='id'){
+    return $$(".numer").map(i=>({id:i.value.trim()}));
+  }
   const base={teryt:$("#teryt").value.trim(),rodzaj_gminy:$("#rodzaj").value.trim(),
     obreb:$("#obreb").value.trim()};
   const ar=$("#arkusz").value.trim();

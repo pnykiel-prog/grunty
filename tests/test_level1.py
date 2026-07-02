@@ -109,3 +109,28 @@ def test_uldk_id_format():
     assert pid.uldk_id() == "146501_1.0001.12/3"
     pid_ar = ParcelId(teryt="146501", rodzaj_gminy="1", obreb="12", numer="5", arkusz="3")
     assert pid_ar.uldk_id() == "146501_1.0012.AR_3.5"
+
+
+def test_from_uldk_id_roundtrip():
+    """Pełny identyfikator -> ParcelId -> ten sam identyfikator."""
+    for raw in ("146501_1.0010.142/7", "146501_1.0012.AR_3.5"):
+        assert ParcelId.from_uldk_id(raw).uldk_id() == raw
+
+
+def test_from_uldk_id_bledny():
+    import pytest
+    for zly in ("", "abc", "146501-1-10-5", "146501_1.0010"):
+        with pytest.raises(ValueError):
+            ParcelId.from_uldk_id(zly)
+
+
+def test_wejscie_po_identyfikatorze():
+    """Wejście pełnym identyfikatorem daje ten sam wynik co osobne pola."""
+    from core.schemas import parse_dzialka
+    po_id = Level1Request.from_items([{"id": "146501_1.0010.142/7"},
+                                      {"id": "146501_1.0010.142/8"}])
+    po_pola = Level1Request(dzialki=[
+        _pid("142/7", obreb="0010"), _pid("142/8", obreb="0010")])
+    assert run_level1(po_id).model_dump() == run_level1(po_pola).model_dump()
+    # pojedyncza pozycja z identyfikatorem
+    assert parse_dzialka({"id": "146501_1.0010.999"}).numer == "999"

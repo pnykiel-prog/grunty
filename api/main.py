@@ -29,13 +29,20 @@ def health() -> dict:
 async def analyze_level1(request: Request) -> JSONResponse:
     body = await request.json()
     # Walidacja wejścia jako terminal S1 (błędna działka -> komunikat, nie 500).
+    # Akceptujemy oba sposoby wprowadzania: osobne pola LUB pełny identyfikator.
     try:
-        req = Level1Request.model_validate(body)
+        req = Level1Request.from_items((body or {}).get("dzialki"))
     except ValidationError as exc:
         wynik = Level1Result(
             status="blad_wejscia", stan_terminalny="S1", tryb=CONFIG.mode,
             komunikat="Niepoprawne dane wejściowe działki.",
             flagi=[str(e.get("msg", "")) for e in exc.errors()],
+        )
+        return JSONResponse(status_code=200, content=wynik.model_dump())
+    except (ValueError, TypeError, KeyError) as exc:
+        wynik = Level1Result(
+            status="blad_wejscia", stan_terminalny="S1", tryb=CONFIG.mode,
+            komunikat=str(exc) or "Niepoprawne dane wejściowe działki.",
         )
         return JSONResponse(status_code=200, content=wynik.model_dump())
 
