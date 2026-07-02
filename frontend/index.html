@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grunty — Analiza M1 (orientacyjny potencjał)</title>
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --acc:#38bdf8; --txt:#e2e8f0; --muted:#94a3b8; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--txt); }
+    header { padding:20px 24px; border-bottom:1px solid #334155; }
+    header h1 { margin:0; font-size:20px; }
+    header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+    main { max-width:920px; margin:0 auto; padding:24px; }
+    .card { background:var(--card); border:1px solid #334155; border-radius:12px; padding:18px; margin-bottom:18px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+    .field { display:flex; flex-direction:column; gap:4px; }
+    label { font-size:12px; color:var(--muted); }
+    input { background:#0b1220; border:1px solid #334155; border-radius:8px; color:var(--txt); padding:8px 10px; width:120px; }
+    button { background:var(--acc); color:#04222f; border:0; border-radius:8px; padding:10px 16px; font-weight:600; cursor:pointer; }
+    button.secondary { background:#334155; color:var(--txt); }
+    .parcels { display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; }
+    .pill.jest { background:#7c2d12; color:#fed7aa; }
+    .pill.brak { background:#14532d; color:#bbf7d0; }
+    .pill.nieznane { background:#334155; color:var(--muted); }
+    pre { background:#0b1220; padding:12px; border-radius:8px; overflow:auto; font-size:12px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
+    .stat { background:#0b1220; border-radius:8px; padding:12px; }
+    .stat b { display:block; font-size:20px; }
+    .stat span { color:var(--muted); font-size:12px; }
+    .verdict-wysoki { color:var(--ok); }
+    .verdict-umiarkowany { color:var(--warn); }
+    .verdict-niski { color:var(--err); }
+    .muted { color:var(--muted); font-size:13px; }
+    .flags li { font-size:12px; color:var(--muted); }
+    .err { color:var(--err); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Grunty — Moduł M1</h1>
+    <p>Orientacyjny potencjał zabudowy z sąsiedztwa + popyt (mock/live). Wynik nie jest odczytem planu miejscowego.</p>
+  </header>
+  <main>
+    <div class="card">
+      <div class="parcels" id="parcels"></div>
+      <div class="row">
+        <button class="secondary" id="add">+ dodaj działkę</button>
+        <button id="analyze">Analizuj</button>
+        <span class="muted" id="mode"></span>
+      </div>
+    </div>
+    <div id="result"></div>
+  </main>
+
+  <script>
+    const parcelsEl = document.getElementById('parcels');
+
+    function parcelRow(v = {}) {
+      const div = document.createElement('div');
+      div.className = 'row parcel';
+      div.innerHTML = `
+        <div class="field"><label>TERYT (WWPPGG)</label><input class="teryt" value="${v.teryt||'146501'}" /></div>
+        <div class="field"><label>rodzaj gminy</label><input class="rodzaj" value="${v.rodzaj_gminy||'1'}" /></div>
+        <div class="field"><label>obręb</label><input class="obreb" value="${v.obreb||'0001'}" /></div>
+        <div class="field"><label>numer działki</label><input class="numer" value="${v.numer||'1'}" /></div>
+        <div class="field"><label>arkusz (opc.)</label><input class="arkusz" value="${v.arkusz||''}" /></div>
+        <button class="secondary rm" title="usuń">×</button>`;
+      div.querySelector('.rm').onclick = () => div.remove();
+      return div;
+    }
+
+    function addParcel(v) { parcelsEl.appendChild(parcelRow(v)); }
+    document.getElementById('add').onclick = () => addParcel();
+    addParcel({ numer: '1' });
+
+    function collect() {
+      return [...document.querySelectorAll('.parcel')].map(r => {
+        const g = c => r.querySelector('.' + c).value.trim();
+        const p = { teryt: g('teryt'), rodzaj_gminy: g('rodzaj'), obreb: g('obreb'), numer: g('numer') };
+        const ar = g('arkusz'); if (ar) p.arkusz = ar;
+        return p;
+      });
+    }
+
+    fetch('/api/health').then(r => r.json()).then(d => {
+      document.getElementById('mode').textContent = 'tryb: ' + d.tryb;
+    });
+
+    function vClass(w){ if(w.startsWith('wysoki')) return 'verdict-wysoki'; if(w.startsWith('umiarkowany')) return 'verdict-umiarkowany'; return 'verdict-niski'; }
+
+    document.getElementById('analyze').onclick = async () => {
+      const resEl = document.getElementById('result');
+      resEl.innerHTML = '<div class="card muted">Analizuję…</div>';
+      try {
+        const resp = await fetch('/api/analyze/level1', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dzialki: collect() })
+        });
+        const d = await resp.json();
+        render(d);
+      } catch (e) {
+        resEl.innerHTML = `<div class="card err">Błąd połączenia: ${e}</div>`;
+      }
+    };
+
+    function render(d) {
+      const resEl = document.getElementById('result');
+      if (d.status !== 'ok') {
+        resEl.innerHTML = `<div class="card"><h3 class="err">Wynik: ${d.status} (stan ${d.stan_terminalny})</h3>
+          <p>${d.komunikat||''}</p>
+          <ul class="flags">${(d.flagi||[]).map(f=>`<li>${f}</li>`).join('')}</ul></div>`;
+        return;
+      }
+      const p = d.potencjal, po = d.popyt, pr = d.profile;
+      resEl.innerHTML = `
+        <div class="card">
+          <h3>Wynik (stan ${d.stan_terminalny}) · pewność ${(d.pewnosc*100).toFixed(0)}%</h3>
+          <div class="grid">
+            <div class="stat"><b>${d.powierzchnia_m2} m²</b><span>powierzchnia (scalona)</span></div>
+            <div class="stat"><b>${p.pum_m2} m²</b><span>PUM (orientacyjny)</span></div>
+            <div class="stat"><b>${p.mieszkania_mlodzi}/${p.mieszkania_seniorzy}</b><span>mieszkania młodzi/seniorzy</span></div>
+            <div class="stat"><b>${p.intensywnosc_otoczenia}</b><span>intensywność otoczenia</span></div>
+            <div class="stat"><b>${p.korekta_spadku}</b><span>korekta spadku (NMT)</span></div>
+            <div class="stat"><b><span class="pill ${p.flaga_mpzp}">MPZP: ${p.flaga_mpzp}</span></b><span>${p.etykieta}</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Popyt i dopasowanie profili</h3>
+          <div class="grid">
+            <div class="stat"><b class="${vClass(pr.mlodzi.werdykt)}">${pr.mlodzi.dopasowanie}</b>
+              <span>MŁODZI — ${pr.mlodzi.werdykt}<br>wew ${po.mlodzi.wew} / zew ${po.mlodzi.zew}</span></div>
+            <div class="stat"><b class="${vClass(pr.seniorzy.werdykt)}">${pr.seniorzy.dopasowanie}</b>
+              <span>SENIORZY — ${pr.seniorzy.werdykt}<br>wew ${po.seniorzy.wew} / zew ${po.seniorzy.zew}</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Flagi i degradacje</h3>
+          <ul class="flags">${(d.flagi||[]).map(f=>`<li>${f}</li>`).join('') || '<li>brak</li>'}</ul>
+        </div>`;
+    }
+  </script>
+</body>
+</html>
